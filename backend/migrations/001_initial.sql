@@ -1,5 +1,20 @@
 -- Initial schema is created from SQLAlchemy metadata at backend startup.
--- claims: code unique, label nullable (0 normal, 1 anomaly).
--- trainings: frozen snapshot and holdout output JSON.
--- reviews: training_id / claim_id foreign keys with unique source pair.
 -- Exact portable schema: src/models/entities.py.
+--
+-- claims: code unique, label nullable (0 normal, 1 anomaly).
+-- trainings: frozen snapshot and holdout output JSON; recon_snapshot_id pins the
+--   reconciliation basis version used at submission time.
+-- reviews: training_id / claim_id foreign keys with unique source pair.
+--
+-- 支付流水对账（金额全部以整数分存储）
+-- payment_batches: 每次导入一行；status = received / completed / failed；
+--   payload 保留原始导入行，失败后按原批重试；snapshot_id 指向完成时的依据版本。
+-- payments: payment_no 全局唯一；kind = payment / reversal；
+--   original_no 为冲正引用的原支付编号（可为尚未到达的编号）；
+--   status = posted / held（冲正先到时挂起）；fingerprint 为规范化内容的 sha256，
+--   用于“同编号同内容幂等、同编号异内容拒绝”。
+-- payment_allocations: 逐票分摊金额，冲正为负数；payment_id + claim_id 唯一；
+--   同一流水分摊合计必须与流水金额按分守恒。
+-- recon_snapshots: 只追加不修改的对账依据版本，payload 冻结流水视图、
+--   逐票状态（settled / unsettled / overpaid / held）、差额与汇总；
+--   训练提交时引用最新一版，并发导入不会影响已提交训练。
